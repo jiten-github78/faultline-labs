@@ -74,19 +74,16 @@ Operator reviews incident and takes action
 
 ---
 
-# MVP Screenshots
+## MVP Screenshots
 
-## n8n Workflow Failure Handling
+### n8n Workflow Failure Handling
+![n8n workflow](n8n-workflow..png)
 
-![n8n workflow](docs/screenshots/n8n-workflow.png)
+### Backend Logs + AI Summary Generation
+![backend logs](backend-logs.png)
 
-## Backend Logs + AI Summary Generation
-
-![backend logs](docs/screenshots/backend-logs.png)
-
-## Slack AI Operational Alert
-
-![slack alert](docs/screenshots/slack-alert.png)
+### Slack AI Operational Alert
+![slack alert](slack-alert.png)
 
 ---
 
