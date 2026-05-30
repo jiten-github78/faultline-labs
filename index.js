@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
 const { WebClient } = require('@slack/web-api');
+const { App } = require('@slack/bolt');
 const OpenAI = require('openai');
 
 const app = express();
@@ -23,9 +24,16 @@ const groq = new OpenAI({
   baseURL: 'https://api.groq.com/openai/v1',
 });
 
-// Slack setup
+// Slack setup (for sending messages)
 const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 const channelId = process.env.SLACK_CHANNEL_ID;
+
+// Slack Bolt setup (for listening to button clicks)
+const boltApp = new App({
+  token: process.env.SLACK_BOT_TOKEN,
+  appToken: process.env.SLACK_APP_TOKEN,
+  socketMode: true,
+});
 
 // In-memory store
 const failures = new Map();
@@ -55,12 +63,58 @@ async function generateAISummary(errorMessage, workflowName) {
   }
 }
 
-// Slack alert function
-async function sendSlackAlert(message) {
+// Slack alert function — with interactive buttons (Block Kit)
+async function sendSlackAlert({ workflowName, errorMessage, aiSummary, recovery_id }) {
   try {
     await slack.chat.postMessage({
       channel: channelId,
-      text: message,
+      text: `🚨 Workflow Failed: ${workflowName}`, // fallback text for notifications
+      blocks: [
+        {
+          type: 'header',
+          text: { type: 'plain_text', text: '🚨 Workflow Failed', emoji: true },
+        },
+        {
+          type: 'section',
+          fields: [
+            { type: 'mrkdwn', text: `*Workflow:*\n${workflowName}` },
+            { type: 'mrkdwn', text: `*Recovery ID:*\n${recovery_id}` },
+          ],
+        },
+        {
+          type: 'section',
+          text: { type: 'mrkdwn', text: `*❌ Error:*\n${errorMessage}` },
+        },
+        {
+          type: 'section',
+          text: { type: 'mrkdwn', text: `*🤖 AI Summary:*\n${aiSummary}` },
+        },
+        {
+          type: 'actions',
+          elements: [
+            {
+              type: 'button',
+              text: { type: 'plain_text', text: 'Resume', emoji: true },
+              style: 'primary',
+              value: recovery_id,
+              action_id: 'resume_workflow',
+            },
+            {
+              type: 'button',
+              text: { type: 'plain_text', text: 'Modify', emoji: true },
+              value: recovery_id,
+              action_id: 'modify_workflow',
+            },
+            {
+              type: 'button',
+              text: { type: 'plain_text', text: 'Abort', emoji: true },
+              style: 'danger',
+              value: recovery_id,
+              action_id: 'abort_workflow',
+            },
+          ],
+        },
+      ],
     });
     console.log('✅ Slack alert sent');
   } catch (error) {
@@ -139,7 +193,7 @@ app.post('/webhook/failure', async (req, res) => {
     console.log('🚨 Failure received');
     console.log(JSON.stringify(failureData, null, 2));
 
-    await sendSlackAlert(`🚨 Workflow Failed: ${workflowName}\n\n❌ Error:\n${errorMessage}\n\n🤖 AI Summary:\n${aiSummary}\n\n🆔 Recovery ID: ${recovery_id}`);
+    await sendSlackAlert({ workflowName, errorMessage, aiSummary, recovery_id });
 
     return res.status(200).json({
       recovery_id,
@@ -174,7 +228,84 @@ app.post('/recover/:id/abort', (req, res) => {
   res.json({ success: true, status: 'aborted' });
 });
 
-// Start server
+// ===== Slack Bolt button handlers =====
+
+boltApp.action('resume_workflow', async ({ ack, body, client }) => {
+  await ack();
+  const recoveryId = body.actions[0].value;
+  console.log('🟢 Resume clicked | Recovery ID:', recoveryId);
+
+  const failure = failures.get(recoveryId);
+  if (failure) {
+    failure.status = 'resumed';
+    console.log(`✅ Recovery resumed: ${recoveryId}`);
+  }
+
+  // Update the Slack message to show resolved
+  try {
+    await client.chat.update({
+      channel: body.channel.id,
+      ts: body.message.ts,
+      text: '✅ Resolved',
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `✅ *Resolved* by <@${body.user.id}>\nRecovery ID: ${recoveryId}`,
+          },
+        },
+      ],
+    });
+  } catch (e) {
+    console.error('❌ Message update error:', e.message);
+  }
+});
+
+boltApp.action('abort_workflow', async ({ ack, body, client }) => {
+  await ack();
+  const recoveryId = body.actions[0].value;
+  console.log('🔴 Abort clicked | Recovery ID:', recoveryId);
+
+  const failure = failures.get(recoveryId);
+  if (failure) {
+    failure.status = 'aborted';
+    console.log(`❌ Recovery aborted: ${recoveryId}`);
+  }
+
+  try {
+    await client.chat.update({
+      channel: body.channel.id,
+      ts: body.message.ts,
+      text: '🔴 Aborted',
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `🔴 *Aborted* by <@${body.user.id}>\nRecovery ID: ${recoveryId}`,
+          },
+        },
+      ],
+    });
+  } catch (e) {
+    console.error('❌ Message update error:', e.message);
+  }
+});
+
+boltApp.action('modify_workflow', async ({ ack, body }) => {
+  await ack();
+  const recoveryId = body.actions[0].value;
+  console.log('🟡 Modify clicked | Recovery ID:', recoveryId);
+});
+
+// Start Express server
 app.listen(PORT, () => {
   console.log(`🚀 Relay server running on port ${PORT}`);
 });
+
+// Start Slack Bolt (Socket Mode)
+(async () => {
+  await boltApp.start();
+  console.log('⚡ Slack Bolt running');
+})();
