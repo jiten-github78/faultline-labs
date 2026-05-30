@@ -1,53 +1,293 @@
-# Faultline Labs — Landing Page
+# Relay — Operational Recovery Layer for AI Workflows
 
-Marketing site for **Relay**, an operational recovery layer for AI workflows.
-Currently in early validation.
+> “PagerDuty for AI Automation Workflows”
 
-**Status:** Pre-product. Landing page live for design-partner outreach.
-Product build planned during the OpenAI × Outskill AI Builders Hackathon (May 25–31, 2026).
+**Status:** ✅ Working MVP built during the OpenAI × Outskill AI Builders Hackathon (May 2026)
 
-**Live site:** https://faultlinelabs.netlify.app
+**Live Site:** https://faultlinelabs.netlify.app
 
 ---
 
-## The problem
+# The Problem
 
-When AI workflows built on tools like n8n, LangGraph, or custom agents fail in production, recovery is still manual. Teams have to read logs, figure out which steps ran, and decide whether retrying is safe.
+AI workflows fail silently in production.
 
-## What Relay does
+When workflows built on n8n, Make, LangGraph, or custom automation systems fail:
 
-- Captures workflow context at the moment of failure
-- Summarizes the incident in plain English
-- Routes it to a human via Slack
-- Enables structured recovery actions: retry, resume, or abort
+* Teams manually inspect logs and partial execution states
+* Engineers are paged for operational incidents at odd hours
+* Recovery is slow, stressful, and inconsistent
+* Non-technical operators cannot confidently take action
+* Existing orchestration tools focus on developers, not operators
 
----
+Modern AI infrastructure has orchestration layers, but no operator-friendly recovery layer exists.
 
-## What's in this repo
-
-- `index.html` — single-file landing page (HTML / CSS / vanilla JS, no framework)
-
-## What's NOT here yet
-
-The product itself. Building during hackathon week.
-
-The live landing page contains placeholder blocks for customer quotes, design partner logos, founder bio, and demo video — these will be filled with real content as design-partner conversations and the product build progress.
+As AI workflows become mission-critical, operational reliability becomes a major bottleneck.
 
 ---
 
-## Stack planned for the product build
+# What Relay Does
 
-- **n8n integration** — custom node that intercepts workflow failures
-- **Failure summarizer** — Codex / GPT-powered plain-English context generator
-- **Slack bot** — one-click recovery actions (resume / modify / abort)
-- **State store** — preserve execution context at the failure point
+Relay detects workflow failures, explains them in plain English using AI, and helps teams recover incidents directly from Slack.
+
+Relay:
+
+* Captures workflow failure context
+* Generates AI-powered operational summaries
+* Sends Slack alerts instantly
+* Creates recovery IDs for incident tracking
+* Enables structured operational recovery
+
+Operators can understand failures and take action without reading logs or paging engineers.
 
 ---
 
-## About
+# Working MVP Flow
 
-Built by Kapil. Reach out: kapildevtamrakar9@gmail.com
+```text
+Workflow fails inside n8n
+        ↓
+Relay backend receives failure event
+        ↓
+Groq Llama 3.3 analyzes logs + execution context
+        ↓
+Plain-English AI summary generated
+        ↓
+Slack alert sent with recovery context + tracking ID
+        ↓
+Operator reviews incident and takes action
+```
 
 ---
 
-*This repo will be updated as the product takes shape during hackathon week.*
+# Working MVP Features
+
+* ✅ Workflow failure interception via n8n error workflows
+* ✅ Express.js webhook backend
+* ✅ AI-generated plain-English summaries using Groq Llama 3.3
+* ✅ Slack operational alerts
+* ✅ UUID-based recovery tracking IDs
+* ✅ Failure logging and tracking endpoints
+* ✅ End-to-end automation recovery pipeline
+* ✅ Real-time webhook integrations
+* ✅ Recovery action endpoints (resume / abort)
+
+---
+
+## MVP Screenshots
+
+### n8n Workflow Failure Handling
+![n8n workflow](n8n-workflow..png)
+
+### Backend Logs + AI Summary Generation
+![backend logs](backend-logs.png)
+
+### Slack AI Operational Alert
+![slack alert](slack-alert.png)
+
+---
+
+# Tech Stack
+
+| Component                | Technology                  |
+| ------------------------ | --------------------------- |
+| Backend / Webhook Server | Node.js + Express           |
+| Workflow Automation      | n8n                         |
+| AI Summarization         | Groq Llama 3.3 70B          |
+| AI SDK                   | OpenAI SDK                  |
+| Operational Alerts       | Slack API                   |
+| Incident Tracking        | UUID                        |
+| APIs                     | REST APIs                   |
+| Deployment               | Netlify + Local Node Server |
+
+---
+
+# API Endpoints
+
+## Health Check
+
+GET `/health`
+
+## Get All Failures
+
+GET `/failures`
+
+## Get Failure By ID
+
+GET `/failures/:id`
+
+## Resume Recovery
+
+POST `/recover/:id/resume`
+
+## Abort Recovery
+
+POST `/recover/:id/abort`
+
+## Failure Webhook
+
+POST `/webhook/failure`
+
+---
+
+# Example Slack Alert
+
+```text
+🚨 Workflow Failed: Test Failure Workflow
+
+❌ Error:
+timeout error
+
+🤖 AI Summary:
+The workflow likely failed due to a timeout while waiting for an external service. Retry the workflow after checking service availability.
+
+🆔 Recovery ID: 1234-5678
+```
+
+---
+
+# How I Used Codex / OpenAI
+
+OpenAI/Codex-assisted development workflows were used throughout the MVP build process.
+
+AI assistance was used for:
+
+* backend architecture
+* debugging
+* workflow payload structuring
+* webhook integration
+* recovery pipeline logic
+* AI summarization flow
+* Slack integration
+* rapid iteration and infrastructure troubleshooting
+
+The project was built using iterative prompt-driven development workflows inside VS Code.
+
+See:
+`CODEX_USAGE.md`
+
+---
+
+# Local Setup
+
+## 1. Clone Repository
+
+```bash
+git clone https://github.com/jiten-github78/faultline-labs.git
+cd faultline-labs
+```
+
+---
+
+## 2. Install Dependencies
+
+```bash
+npm install
+```
+
+---
+
+## 3. Create `.env`
+
+```env
+SLACK_BOT_TOKEN=xoxb-your-token
+SLACK_CHANNEL_ID=C-your-channel
+GROQ_API_KEY=gsk-your-key
+```
+
+---
+
+## 4. Start Backend
+
+```bash
+node index.js
+```
+
+Server runs on:
+
+```text
+http://localhost:3001
+```
+
+---
+
+## 5. Configure n8n Error Workflow
+
+Configure an Error Workflow inside n8n that sends POST requests to:
+
+```text
+http://localhost:3001/webhook/failure
+```
+
+---
+
+# Target Audience
+
+* Automation agencies managing multiple client workflows
+* AI operations teams
+* Businesses using n8n or Make
+* Internal workflow automation teams
+* AI agent startups
+* No-code / low-code operators
+* Teams managing mission-critical workflows
+
+---
+
+# Vision
+
+Reliable AI automation needs AI-native operational tooling.
+
+Relay is building the operational recovery layer that makes AI workflows:
+
+* understandable
+* observable
+* recoverable
+* operator-friendly
+
+Every mission-critical AI workflow will eventually require an operational recovery system.
+
+---
+
+# Roadmap
+
+### Current MVP
+
+* Workflow failure detection
+* AI summaries
+* Slack alerts
+* Recovery tracking
+
+### Next Steps
+
+* Slack recovery buttons
+* Workflow replay / retry
+* Persistent database layer
+* Dashboard for operators
+* Production deployment
+* Advanced AI recovery suggestions
+
+---
+
+# Built During Hackathon
+
+Built during the OpenAI × Outskill AI Builders Hackathon 2026.
+
+Focus Areas:
+
+* AI-assisted software development
+* Operational reliability
+* AI workflow recovery
+* Lean MVP execution
+* Rapid iteration and shipping
+
+---
+
+# Built By
+
+Kapil Dev Tamrakar
+
+GitHub:
+https://github.com/jiten-github78
+
+Email:
+[kapildevtamrakar9@gmail.com](mailto:kapildevtamrakar9@gmail.com)
