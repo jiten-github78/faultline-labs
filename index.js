@@ -27,6 +27,7 @@ const groq = new OpenAI({
 // Slack setup (for sending messages)
 const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 const channelId = process.env.SLACK_CHANNEL_ID;
+console.log('CHANNEL ID:', channelId);
 
 // Slack Bolt setup (for listening to button clicks)
 const boltApp = new App({
