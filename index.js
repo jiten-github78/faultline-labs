@@ -8,7 +8,7 @@ const { App } = require('@slack/bolt');
 const OpenAI = require('openai');
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -40,26 +40,50 @@ const failures = new Map();
 
 // AI Summary function
 async function generateAISummary(errorMessage, workflowName) {
-  try {
-    const completion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are an AI workflow recovery assistant. Analyze failures and give short, actionable, plain-English summaries for operations teams. No technical jargon.',
-        },
-        {
-          role: 'user',
-          content: `Workflow Name: ${workflowName}\nError: ${errorMessage}\n\nProvide:\n1. What likely happened (1 sentence)\n2. Suggested recovery action (1 sentence)\n\nKeep response under 3 sentences total.`,
-        },
-      ],
-      model: 'llama-3.3-70b-versatile',
-    });
+  let retries = 2;
 
-    return completion.choices[0]?.message?.content || 'AI summary unavailable';
-  } catch (error) {
-    console.error('❌ AI Summary Error:', error.message);
-    return 'AI summary unavailable';
+  while (retries > 0) {
+    try {
+      const completion = await groq.chat.completions.create({
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are an AI workflow recovery assistant. Analyze failures and give short, actionable, plain-English summaries for operations teams. No technical jargon.',
+          },
+          {
+            role: 'user',
+            content: `Workflow Name: ${workflowName}\nError: ${errorMessage}\n\nProvide:\n1. What likely happened (1 sentence)\n2. Suggested recovery action (1 sentence)\n\nKeep response under 3 sentences total.`,
+          },
+        ],
+        model: 'llama-3.3-70b-versatile',
+      });
+
+      console.log('✅ AI Summary Generated');
+
+      return (
+        completion.choices[0]?.message?.content ||
+        'AI summary unavailable'
+      );
+    } catch (error) {
+      retries--;
+
+      console.error('❌ AI Summary Error:', error.message);
+
+      if (retries > 0) {
+        console.log(
+          `🔄 Retrying AI call... Attempts left: ${retries}`
+        );
+      }
+
+      if (retries === 0) {
+        console.log(
+          '⚠️ AI summary unavailable — manual review required.'
+        );
+
+        return 'AI summary unavailable — manual review required.';
+      }
+    }
   }
 }
 
@@ -121,6 +145,21 @@ async function sendSlackAlert({ workflowName, errorMessage, aiSummary, recovery_
     console.error('❌ Slack error:', error.message);
   }
 }
+
+// Root route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    name: 'Relay MVP',
+    status: 'running',
+    message: 'AI Workflow Recovery Layer is live',
+    endpoints: {
+      health: '/health',
+      failures: '/failures',
+      webhook: '/webhook/failure'
+    }
+  });
+});
+
 
 // Health check
 app.get('/health', (req, res) => {
