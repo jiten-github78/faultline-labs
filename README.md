@@ -282,12 +282,9 @@ Focus Areas:
 
 ---
 
-# Built By
 
-Kapil Dev Tamrakar
 
 GitHub:
 https://github.com/jiten-github78
 
-Email:
-[kapildevtamrakar9@gmail.com](mailto:kapildevtamrakar9@gmail.com)
+
